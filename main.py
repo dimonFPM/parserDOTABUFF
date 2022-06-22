@@ -26,13 +26,13 @@ def get_content(url) -> requests.models.Response or None:
 
 def save_file(req, name: str) -> None:
     '''Записывает переданный в функцию код страницы в текстовый файл'''
-
+    name = "html//" + name
     if req is not None and (name[-4:] == ".txt"):
         req = req.text
         with open(name, "w", encoding="utf-8") as file:
             file.write(req)
     else:
-        print("нет данных для записи")
+        print("нет данных для записи или не коректное имя файла")
 
 
 def read_file(name):
@@ -95,12 +95,12 @@ def write_json(data_dict, name_json) -> None:
 
 def create_item_json(file_name) -> None:
     x = pars_name_price(read_file(file_name))
-    write_json(x, "item_json.json")
+    write_json(x, "json//item_json.json")
 
 
 def create_herous_json(file_name):
     x = pars_herous(read_file(file_name))
-    write_json(x,"herous_json.json")
+    write_json(x, "json//herous_json.json")
 
 
 def check_files():
@@ -108,21 +108,22 @@ def check_files():
         os.mkdir("picture")
     if not os.path.exists("json"):
         os.mkdir("json")
+    if not os.path.exists("html"):
+        os.mkdir("html")
 
     if not os.path.exists("items_json.json"):  # проверка на наличие item_json
-        if not os.path.exists("html_item.txt"):
+        if not os.path.exists("html//html_item.txt"):
             save_file(get_content("https://ru.dotabuff.com/items"), "html_item.txt")
-        create_item_json("html_item.txt")
+        create_item_json("html//html_item.txt")
 
     if not os.path.exists("herous_json.json"):  # проверка на наличие herou_json
-        if not os.path.exists("html_herous.txt"):
+        if not os.path.exists("html//html_herous.txt"):
             save_file(get_content("https://ru.dotabuff.com/heroes"), "html_herous.txt")
-        create_herous_json("html_herous.txt")
+        create_herous_json("html//html_herous.txt")
 
 
 def main():
     check_files()
-
 
 
 if __name__ == '__main__':
