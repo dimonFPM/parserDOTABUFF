@@ -51,7 +51,7 @@ def pars_name_price(pars_file: str) -> dict or None:
     for href in tqdm(item_href_list):
         req = get_content(href)
 
-        if req:
+        if req.ok:
             href_soup = bs4.BeautifulSoup(req.text, "lxml")
             article = href_soup.find("div", class_="embedded-tooltip")
             name = article.find("div", class_="name").text
@@ -59,6 +59,7 @@ def pars_name_price(pars_file: str) -> dict or None:
             item_list.append({"name": name, "price": price, "href": href})
         else:
             print("не рабочая ссылка")
+
         #########
         if len(item_list) == 10:
             break
@@ -71,11 +72,32 @@ def pars_name_price(pars_file: str) -> dict or None:
         return None
 
 
+def picture_save(picture_url: str) -> None:
+    # name=picture_url.replace("https://ru.dotabuff.com/heroes/assets/heroes/","")
+    req = requests.get(picture_url, headers=headers, stream=True)
+    if req.ok:
+        print(req.ok)
+        with open("picture//111.jpg", "wb") as file:
+            for chunk in req.iter_content(chunk_size=1000):
+                if chunk:
+                    file.write(chunk)
+    else:
+        print(req.ok)
+
 def pars_herous(pars_file: str):
     herou_soup = bs4.BeautifulSoup(pars_file, "lxml")
     herous_list = herou_soup.find("div", class_="hero-grid").find_all("a")
     herous_href_list = [f"https://ru.dotabuff.com/heroes{href['href']}" for href in herous_list]
     herous_name = [herou.text for herou in herous_list]
+
+    # herous_imag_href = [
+    #     f'https://ru.dotabuff.com/heroes{herou.find("div", class_="hero")["style"].replace("background: url(", "").replace(")", "")}'
+    #     for herou in herous_list]
+    # print("imag:\n", *herous_imag_href,sep="\n")
+    # print(herous_imag_href[0])
+    # picture_save(herous_imag_href[0])
+    # # exit()
+
     herous_list.clear()
     if len(herous_name) == len(herous_href_list):
         for i in tqdm(range(len(herous_name))):
@@ -106,9 +128,9 @@ def create_herous_json(file_name):
 def check_files():
     if not os.path.exists("picture"):  # проверка наличия папки с изображениями
         os.mkdir("picture")
-    if not os.path.exists("json"):
+    if not os.path.exists("json"):# проверка наличия папки с json
         os.mkdir("json")
-    if not os.path.exists("html"):
+    if not os.path.exists("html"):# проверка наличия папки с html
         os.mkdir("html")
 
     if not os.path.exists("items_json.json"):  # проверка на наличие item_json
