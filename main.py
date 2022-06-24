@@ -72,6 +72,23 @@ def pars_name_price(pars_file: str) -> dict or None:
         return None
 
 
+def pars_12_favorite_item(herou_href: str):
+    if os.path.exists(herou_href):
+        with open(herou_href, "r") as file:
+            herous_list = json.load(file)
+        for herou in herous_list:
+            req = requests.get(herou["href"], headers=headers)
+            if req.ok:
+                soup=bs4.BeautifulSoup(req.text,"lxml")
+                table_html=soup.find("table").find_all("tr")
+                print(table_html)
+                exit()
+            else:
+                print("не рабочая ссылка")
+    else:
+        print("нет файла json")
+
+
 def picture_save(picture_url: str) -> None:
     # name=picture_url.replace("https://ru.dotabuff.com/heroes/assets/heroes/","")
     req = requests.get(picture_url, headers=headers, stream=True)
@@ -83,6 +100,7 @@ def picture_save(picture_url: str) -> None:
                     file.write(chunk)
     else:
         print(req.ok)
+
 
 def pars_herous(pars_file: str):
     herou_soup = bs4.BeautifulSoup(pars_file, "lxml")
@@ -98,6 +116,7 @@ def pars_herous(pars_file: str):
     # picture_save(herous_imag_href[0])
     # # exit()
 
+    
     herous_list.clear()
     if len(herous_name) == len(herous_href_list):
         for i in tqdm(range(len(herous_name))):
@@ -126,11 +145,12 @@ def create_herous_json(file_name):
 
 
 def check_files():
+    '''Проверка нужных директорий и файлов'''
     if not os.path.exists("picture"):  # проверка наличия папки с изображениями
         os.mkdir("picture")
-    if not os.path.exists("json"):# проверка наличия папки с json
+    if not os.path.exists("json"):  # проверка наличия папки с json
         os.mkdir("json")
-    if not os.path.exists("html"):# проверка наличия папки с html
+    if not os.path.exists("html"):  # проверка наличия папки с html
         os.mkdir("html")
 
     if not os.path.exists("items_json.json"):  # проверка на наличие item_json
@@ -145,7 +165,8 @@ def check_files():
 
 
 def main():
-    check_files()
+    # check_files()
+    pars_12_favorite_item("json//herous_json.json")
 
 
 if __name__ == '__main__':
