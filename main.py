@@ -1,3 +1,5 @@
+import time
+
 import bs4
 import requests
 # import grequests
@@ -72,21 +74,39 @@ def pars_name_price(pars_file: str) -> dict or None:
         return None
 
 
-def pars_12_favorite_item(herou_href: str):
-    if os.path.exists(herou_href):
-        with open(herou_href, "r") as file:
-            herous_list = json.load(file)
-        for herou in herous_list:
-            req = requests.get(herou["href"], headers=headers)
-            if req.ok:
-                soup=bs4.BeautifulSoup(req.text,"lxml")
-                table_html=soup.find("table").find_all("tr")
-                print(table_html)
-                exit()
-            else:
-                print("не рабочая ссылка")
+def pars_herou_page(herou_href: str = "https://ru.dotabuff.com/heroes/abaddon"):
+    '''Принемает на вход ссылку на страницу героя'''
+    output = []
+    req = get_content(herou_href)
+    if req:  # если None то значит не прошел запрос(get_content вернул None)
+        soup = bs4.BeautifulSoup(req.text, "lxml")  # получаем страницу героя
+        table_html = soup.find_all("table")
+        output.append(pars_herou_favorit_items_table(table_html[2]))  # 2-номер таблицы с предметами
+        print(output)
+        return output
     else:
-        print("нет файла json")
+        print("не рабочая ссылка")
+
+
+def pars_herou_favorit_items_table(table: bs4.element.Tag) -> dict:
+    '''Получает на вход 'результат поиска bs4 по тегу <table>
+    return  dict вида {"название предмета":{"Матчи": int, "Победы": int, "Доля побед": float}}'''
+    dict_item = {}
+    # Phase Boots48,48024,23950.00
+    soup = bs4.BeautifulSoup(table.text, "lxml")
+    items = soup.find("p").text.replace("ПредметМатчиПобедыДоля побед", "").split("%")
+    items.pop()
+    for i in range(len(items)):
+        name = "".join([j for j in items[i] if not j.isnumeric() and j not in (".", ",")])
+        params_item = items[i].replace(name, "").split(",")
+        dict_item[name] = {"Матчи": int(params_item[0]), "Победы": int(params_item[1]),
+                           "Доля побед": float(params_item[2])}
+    # print(dict_item)
+    return dict_item
+
+
+def pars_all_table_from_html():
+    pass
 
 
 def picture_save(picture_url: str) -> None:
@@ -103,10 +123,21 @@ def picture_save(picture_url: str) -> None:
 
 
 def pars_herous(pars_file: str):
+    '''return список словарей, в которых храниться информация о герое(имя,
+                                                                      ссылка на страницу героя)'''
     herou_soup = bs4.BeautifulSoup(pars_file, "lxml")
     herous_list = herou_soup.find("div", class_="hero-grid").find_all("a")
-    herous_href_list = [f"https://ru.dotabuff.com/heroes{href['href']}" for href in herous_list]
-    herous_name = [herou.text for herou in herous_list]
+    herous_href_list = [f"https://ru.dotabuff.com/{href['href']}" for href in
+                        herous_list]  # поулучаем ссылки для всех героев
+    herous_name_list = [herou.text for herou in herous_list]
+
+    # for herou_href in herous_href_list:
+    #     print(herou_href)
+    #     res = requests.get(herou_href, headers=headers)
+    #     if res.ok:
+    #         pass
+    #     else:
+    #         print("Не удаётся получить топ предметы для героя, ссылка не работает")
 
     # herous_imag_href = [
     #     f'https://ru.dotabuff.com/heroes{herou.find("div", class_="hero")["style"].replace("background: url(", "").replace(")", "")}'
@@ -116,11 +147,10 @@ def pars_herous(pars_file: str):
     # picture_save(herous_imag_href[0])
     # # exit()
 
-    
     herous_list.clear()
-    if len(herous_name) == len(herous_href_list):
-        for i in tqdm(range(len(herous_name))):
-            herous_list.append({"name": herous_name[i], "href": herous_href_list[i]})
+    if len(herous_name_list) == len(herous_href_list):
+        for i in tqdm(range(len(herous_name_list))):
+            herous_list.append({"name": herous_name_list[i], "href": herous_href_list[i]})
         return herous_list
     else:
         return None
@@ -166,7 +196,7 @@ def check_files():
 
 def main():
     # check_files()
-    pars_12_favorite_item("json//herous_json.json")
+    pars_herou_page()
 
 
 if __name__ == '__main__':
