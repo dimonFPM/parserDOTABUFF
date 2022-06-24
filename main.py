@@ -43,12 +43,12 @@ def read_file(name):
         return file.read()
 
 
-def pars_name_price(pars_file: str) -> dict or None:
+def pars_items_name_price(pars_file: str) -> dict or None:
     '''Находит цену и название предметов'''
     soup = bs4.BeautifulSoup(pars_file, "lxml")
     item_list = soup.find("table", class_="sortable").find_all("td", class_="cell-xlarge")
     item_href_list = [f"https://ru.dotabuff.com{i.find('a')['href']}" for i in item_list]
-    print(*item_href_list[:10], sep="\n")
+    # print(*item_href_list[:10], sep="\n")
     item_list = []
     for href in tqdm(item_href_list):
         req = get_content(href)
@@ -63,8 +63,8 @@ def pars_name_price(pars_file: str) -> dict or None:
             print("не рабочая ссылка")
 
         #########
-        if len(item_list) == 10:
-            break
+        # if len(item_list) == 10:
+        #     break
         #########
 
     # print(item_list)
@@ -74,7 +74,7 @@ def pars_name_price(pars_file: str) -> dict or None:
         return None
 
 
-def pars_herou_page(herou_href: str = "https://ru.dotabuff.com/heroes/abaddon"):
+def pars_herou_page_tables(herou_href: str = "https://ru.dotabuff.com/heroes/abaddon") -> list or None:
     '''Принемает на вход ссылку на страницу героя'''
     output = []
     req = get_content(herou_href)
@@ -82,10 +82,11 @@ def pars_herou_page(herou_href: str = "https://ru.dotabuff.com/heroes/abaddon"):
         soup = bs4.BeautifulSoup(req.text, "lxml")  # получаем страницу героя
         table_html = soup.find_all("table")
         output.append(pars_herou_favorit_items_table(table_html[2]))  # 2-номер таблицы с предметами
-        print(output)
+        # print(output)
         return output
     else:
         print("не рабочая ссылка")
+        return None
 
 
 def pars_herou_favorit_items_table(table: bs4.element.Tag) -> dict:
@@ -97,16 +98,19 @@ def pars_herou_favorit_items_table(table: bs4.element.Tag) -> dict:
     items = soup.find("p").text.replace("ПредметМатчиПобедыДоля побед", "").split("%")
     items.pop()
     for i in range(len(items)):
+        # print(items[i])
         name = "".join([j for j in items[i] if not j.isnumeric() and j not in (".", ",")])
-        params_item = items[i].replace(name, "").split(",")
-        dict_item[name] = {"Матчи": int(params_item[0]), "Победы": int(params_item[1]),
-                           "Доля побед": float(params_item[2])}
+        x = items[i].replace(name, "")
+        # params_item = list(map(float, [x[0:6].replace(",", "."), x[6:12].replace(",", "."), x[12:]]))
+        # print(params_item)
+        dict_item[name] = {"Матчи": "", "Победы": "", "Доля побед(%)": ""}
     # print(dict_item)
+    # exit()
     return dict_item
 
 
-def pars_all_table_from_html():
-    pass
+# def pars_all_table_from_html():
+#     pass
 
 
 def picture_save(picture_url: str) -> None:
@@ -150,7 +154,16 @@ def pars_herous(pars_file: str):
     herous_list.clear()
     if len(herous_name_list) == len(herous_href_list):
         for i in tqdm(range(len(herous_name_list))):
-            herous_list.append({"name": herous_name_list[i], "href": herous_href_list[i]})
+            herou_data_list = pars_herou_page_tables(herous_href_list[i])
+            ##########
+            # if i > 5:
+            #     break
+            ###########
+            if herou_data_list:
+                herous_list.append(
+                    {"name": herous_name_list[i], "href": herous_href_list[i], "Предметы": herou_data_list[0]})
+            else:
+                herous_list.append({"name": herous_name_list[i], "href": herous_href_list[i]})
         return herous_list
     else:
         return None
@@ -165,7 +178,7 @@ def write_json(data_dict, name_json) -> None:
 
 
 def create_item_json(file_name) -> None:
-    x = pars_name_price(read_file(file_name))
+    x = pars_items_name_price(read_file(file_name))
     write_json(x, "json//item_json.json")
 
 
@@ -195,8 +208,8 @@ def check_files():
 
 
 def main():
-    # check_files()
-    pars_herou_page()
+    check_files()
+    # pars_herou_page()
 
 
 if __name__ == '__main__':
