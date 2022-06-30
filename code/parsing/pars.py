@@ -1,28 +1,29 @@
-import time
-
 import bs4
+import parser_config
 import grequests
 import requests
 import json
 from tqdm import tqdm
 import copy
 import os
+from loguru import logger
+
+debug_logger = logger.add("..//..//logs//debug_log.log", level="DEBUG")
 
 headers = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) 'Chrome/89.0.4389.72 Safari/537.36"}
 
-
-session=requests.Session()
+session = requests.Session()
 session.headers.update(headers)
-g_session=grequests.Session()
+g_session = grequests.Session()
 g_session.headers.update(headers)
 
 
 def get_content_requests(url) -> requests.models.Response or None:
     '''Получает код страницы по адресу, указанному в url'''
-    response = session.get(url=url, headers=headers)
-    print(response.status_code)
-    print(response.headers)
+    response = session.get(url=url, headers=headers, timeout=50)
+    # print(response.status_code)
+    # print(response.headers)
     if response.ok:
         return response
     else:
@@ -31,7 +32,7 @@ def get_content_requests(url) -> requests.models.Response or None:
 
 
 def get_content_grequests(url_list: tuple):
-    req_list = (g_session.get(url, headers=headers) for url in url_list)
+    req_list = (g_session.get(url, headers=headers, timeout=10) for url in url_list)
     response = grequests.map(req_list)
     if len(response) == response.count(None):
         return None
@@ -41,7 +42,8 @@ def get_content_grequests(url_list: tuple):
 
 def save_file(req, name: str) -> None:
     '''Записывает переданный в функцию код страницы в текстовый файл'''
-    name = "html//" + name
+    name = f"{parser_config.html_path}//" + name
+    # name = "html//" + name
     if req is not None and (name[-4:] == ".txt"):
         req = req.text
         with open(name, "w", encoding="utf-8") as file:
@@ -74,40 +76,72 @@ def get_item_href_list(pars_file: str):
 def pars_items_name_price(pars_file: str) -> dict or None:
     '''Находит цену и название предметов'''
     item_href_list = get_item_href_list(pars_file)
-    print("res",get_content_requests(item_href_list[0]))
-    greq_list = (grequests.get(url, headers=headers) for url in item_href_list)
-    response = grequests.map(greq_list)
+    # print("res", get_content_requests(item_href_list[0]))
 
-    # print(response)
-    # print(response[0].headers)
-    # exit()
+    # region grequests
+    # greq_list = (grequests.get(url, headers=headers) for url in item_href_list)
+    # response = grequests.map(greq_list)
+    #
+    # # print(response)
+    # # print(response[0].headers)
+    # # exit()
+    # item_list = []
+    # for i, herou in tqdm(enumerate(response)):
+    #     if herou is not None:
+    #         herou_soup = bs4.BeautifulSoup(herou.text, "lxml")
+    #         article = herou_soup.find("div", class_="embedded-tooltip")
+    #         name = article.find("div", class_="name").text
+    #         price = article.find("div", class_="price").text
+    #         item_list.append({"name": name, "price": price, "href": item_href_list[i]})
+    # print(*item_list, sep="\n")
+    # endregion
+
+    # region requests
+
     item_list = []
-    for i, herou in tqdm(enumerate(response)):
-        if herou is not None:
-            herou_soup = bs4.BeautifulSoup(herou.text, "lxml")
-            article = herou_soup.find("div", class_="embedded-tooltip")
+    for href in tqdm(item_href_list):
+        req = get_content_requests(href)
+
+        if req.ok:
+            href_soup = bs4.BeautifulSoup(req.text, "lxml")
+            article = href_soup.find("div", class_="embedded-tooltip")
             name = article.find("div", class_="name").text
             price = article.find("div", class_="price").text
-            item_list.append({"name": name, "price": price, "href": item_href_list[i]})
-    # print(*item_list, sep="\n")
+            item_list.append({"name": name, "price": price, "href": href})
+        else:
+            print("не рабочая ссылка")
+
+        #########
+        if len(item_list) == 10 and parser_config.test_config is True:
+            break
+        #########
+    # endregion
+
     if item_list:
         return copy.deepcopy(item_list)
     else:
         return None
 
 
-def pars_herou_page_tables(herou_href: str = "https://ru.dotabuff.com/heroes/abaddon") -> list or None:
-    '''Принемает на вход ссылку на страницу героя'''
+def pars_herou_page(herou_href: str = "https://ru.dotabuff.com/heroes/abaddon") -> list or None:
+    '''Принимает на вход ссылку на страницу героя'''
     output = []
     req = get_content_requests(herou_href)
-    print(req)
-    print(*req.headers.items(),sep="\n")
+    # print(req)
+    # print(*req.headers.items(), sep="\n")
     if req:  # если None то значит не прошел запрос(get_content вернул None)
-        soup = bs4.BeautifulSoup(req.text, "lxml")  # получаем страницу героя
-        table_html = soup.find_all("table")
+        soup = bs4.BeautifulSoup(req.text, "lxml")  # кладём страницу героя в объект bs4
+        table_html = soup.find_all("table")  # получаем все таблицы со стрницы
 
-        # парсинг необходимых таблиц(здесь можно добавить в output парсинг других таблиц со страницы героя
+        ####
+        # for i in range(len(table_html)):
+        #     with open(f"table_html_{i}.txt", "w", encoding="utf-8") as file:
+        #         file.write(f"{table_html[i]}")
+        ####
+
+        # парсинг необходимых данных(здесь можно добавить в output парсинг других таблиц или других структур со страницы героя
         output.append(pars_herou_favorit_items_table(table_html[2]))  # 2-номер таблицы с предметами
+        output.append(pars_herou_skils(soup))
         ########
 
         # print(output)
@@ -115,6 +149,22 @@ def pars_herou_page_tables(herou_href: str = "https://ru.dotabuff.com/heroes/aba
     else:
         print("не рабочая ссылка")
         return None
+
+
+def pars_herou_skils(soup):
+    skils_data = soup.find("article", class_="skill-choices smaller")
+    # print(skils_data)
+    skils_dict = {}
+    for skil in skils_data.find_all("div", class_="skill"):
+        img = skil.find("a").find("img")
+        name = img["alt"]
+        skil_learn = skil.find_all("div", class_="entry choice")
+        # print(skil_learn)
+        skil_learn = tuple(int(i.text) for i in skil_learn)
+        picture = picture_save(f"https://ru.dotabuff.com{img['src']}", name)
+        skils_dict[name] = {"Прокачка": skil_learn, "img_path": picture}
+    # print(skils_dict)
+    return skils_dict
 
 
 def pars_herou_favorit_items_table(table: bs4.element.Tag) -> dict:
@@ -140,18 +190,20 @@ def pars_herou_favorit_items_table(table: bs4.element.Tag) -> dict:
 # def pars_all_table_from_html():
 #     pass
 
-
-def picture_save(picture_url: str) -> None:
+# @logger.catch()
+def picture_save(picture_url: str, name) -> None:
+    name = name.replace("/", "_")
     # name=picture_url.replace("https://ru.dotabuff.com/heroes/assets/heroes/","")
-    req = requests.get(picture_url, headers=headers, stream=True)
+    req = requests.get(picture_url, headers=headers, stream=True, timeout=10)
     if req.ok:
-        print(req.ok)
-        with open("picture//111.jpg", "wb") as file:
+        # print(req.ok)
+        with open(f"{parser_config.picture_path}//{name}.jpg", "wb") as file:
             for chunk in req.iter_content(chunk_size=1000):
                 if chunk:
                     file.write(chunk)
+        return f"{parser_config.picture_path}//{name}.jpg"
     else:
-        print(req.ok)
+        None
 
 
 # def get_herous_href_list():
@@ -162,38 +214,25 @@ def pars_herous(pars_file: str):
                                                                       ссылка на страницу героя)'''
     herou_soup = bs4.BeautifulSoup(pars_file, "lxml")
     herous_list = herou_soup.find("div", class_="hero-grid").find_all("a")
-    print(herous_list)
+    # print(herous_list)
     herous_href_list = [f"https://ru.dotabuff.com{href['href']}" for href in
                         herous_list]  # поулучаем ссылки для всех героев
     herous_name_list = [herou.text for herou in herous_list]
 
-    # for herou_href in herous_href_list:
-    #     print(herou_href)
-    #     res = requests.get(herou_href, headers=headers)
-    #     if res.ok:
-    #         pass
-    #     else:
-    #         print("Не удаётся получить топ предметы для героя, ссылка не работает")
+    # print(herous_href_list)
 
-    # herous_imag_href = [
-    #     f'https://ru.dotabuff.com/heroes{herou.find("div", class_="hero")["style"].replace("background: url(", "").replace(")", "")}'
-    #     for herou in herous_list]
-    # print("imag:\n", *herous_imag_href,sep="\n")
-    # print(herous_imag_href[0])
-    # picture_save(herous_imag_href[0])
-    # # exit()
-    print(herous_href_list)
     herous_list.clear()
     if len(herous_name_list) == len(herous_href_list):
         for i in tqdm(range(len(herous_name_list))):
-            herou_data_list = pars_herou_page_tables(herous_href_list[i])
+            herou_data_list = pars_herou_page(herous_href_list[i])
             ##########
-            if i > 5:
+            if i > 5 and parser_config.test_config is True:
                 break
             ###########
             if herou_data_list:
                 herous_list.append(
-                    {"name": herous_name_list[i], "href": herous_href_list[i], "Предметы": herou_data_list[0]})
+                    {"name": herous_name_list[i], "href": herous_href_list[i], "Предметы": herou_data_list[0], "Скилы":
+                        herou_data_list[1]})
             else:
                 herous_list.append({"name": herous_name_list[i], "href": herous_href_list[i]})
         return herous_list
@@ -211,41 +250,51 @@ def write_json(data_dict, name_json) -> None:
 
 def create_item_json(file_name) -> None:
     x = pars_items_name_price(read_file(file_name))
-    write_json(x, "json//item_json.json")
+    write_json(x, f"{parser_config.json_path}//item_json.json")
 
 
 def create_herous_json(file_name):
     x = pars_herous(read_file(file_name))
-    write_json(x, "json//herous_json.json")
+    write_json(x, f"{parser_config.json_path}//herous_json.json")
 
 
 def check_files():
     '''Проверка нужных директорий и файлов'''
-    if not os.path.exists("picture"):  # проверка наличия папки с изображениями
-        os.mkdir("picture")
-    if not os.path.exists("json"):  # проверка наличия папки с json
-        os.mkdir("json")
-    if not os.path.exists("html"):  # проверка наличия папки с html
-        os.mkdir("html")
+    if not os.path.exists(parser_config.picture_path):  # проверка наличия папки с изображениями
+        os.mkdir(parser_config.picture_path)
+    if not os.path.exists(parser_config.json_path):  # проверка наличия папки с json
+        os.mkdir(parser_config.json_path)
+    if not os.path.exists(parser_config.html_path):  # проверка наличия папки с html
+        os.mkdir(parser_config.html_path)
+    if not os.path.exists(parser_config.logs_path):  # проверка наличия папки с изображениями
+        os.mkdir(parser_config.logs_path)
 
-    if not os.path.exists("items_json.json"):  # проверка на наличие item_json
-        if not os.path.exists("html//html_item.txt"):
+    if not os.path.exists(f"{parser_config.json_path}//items_json.json"):  # проверка на наличие item_json
+        if not os.path.exists(f"{parser_config.html_path}//html_item.txt"):
             save_file(get_content_requests("https://ru.dotabuff.com/items"), "html_item.txt")
-        create_item_json("html//html_item.txt")
+        create_item_json(f"{parser_config.html_path}//html_item.txt")
 
-    if not os.path.exists("herous_json.json"):  # проверка на наличие herou_json
-        if not os.path.exists("html//html_herous.txt"):
+    if not os.path.exists(f"{parser_config.json_path}//herous_json.json"):  # проверка на наличие herou_json
+        if not os.path.exists(f"{parser_config.html_path}//html_herous.txt"):
             save_file(get_content_requests("https://ru.dotabuff.com/heroes"), "html_herous.txt")
-        create_herous_json("html//html_herous.txt")
+        create_herous_json(f"{parser_config.html_path}//html_herous.txt")
+    if all([os.path.exists(parser_config.logs_path),
+            os.path.exists(parser_config.html_path),
+            os.path.exists(parser_config.json_path),
+            os.path.exists(parser_config.picture_path)]):
+        print("успешная проверка")
+    else:
+        print("нет одной из необходимых директорий")
 
 
 def main():
-    # check_files()
+    check_files()
     # pars_herou_page()
     # get_content_grequests(("https://ru.dotabuff.com/heroes", 0, 1, "afeaf", "https://ru.dotabuff.com/heroes"))
     # pars_items_name_price(read_file("html//html_item.txt"))
-    pars_herous(read_file("html//html_herous.txt"))
+    # pars_herous(read_file("html//html_herous.txt"))
     pass
+
 
 def test():
     pass

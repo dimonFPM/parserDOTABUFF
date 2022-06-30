@@ -1,6 +1,5 @@
 import unittest
-import main
-import grequests
+from code import main
 import requests
 
 headers = {
