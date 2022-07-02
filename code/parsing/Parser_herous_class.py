@@ -1,5 +1,4 @@
 import os
-
 import bs4
 from tqdm import tqdm
 import Parser_Class
@@ -72,7 +71,7 @@ class Parser_Herous_Class(Parser_Class.Parser):
         # exit()
         return dict_item
 
-    def pars_herous(self, pars_file: str):
+    def pars_data_about_herous(self, pars_file: str):
         '''return список словарей, в которых храниться вся полученная информация о героях(имя,
                                                                           ссылка на страницу героя)'''
         herou_soup = bs4.BeautifulSoup(pars_file, "lxml")
@@ -104,7 +103,7 @@ class Parser_Herous_Class(Parser_Class.Parser):
             return None
 
     def create_herous_json(self, file_name):
-        x = self.pars_herous(self.read_file(file_name))
+        x = self.pars_data_about_herous(self.read_file(file_name))
         self.write_json(x, f"{parser_config.json_path}//herous_json.json")
 
     def check(self):
