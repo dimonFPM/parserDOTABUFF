@@ -19,7 +19,7 @@ class Parser_Herous_Class(Parser_Class.Parser):
             soup = bs4.BeautifulSoup(req.text, "lxml")  # кладём страницу героя в объект bs4
             table_html = soup.find_all("table")  # получаем все таблицы со стрницы
 
-            ####
+            ####сожраняет все таблицы со страницы героя
             # for i in range(len(table_html)):
             #     with open(f"table_html_{i}.txt", "w", encoding="utf-8") as file:
             #         file.write(f"{table_html[i]}")
