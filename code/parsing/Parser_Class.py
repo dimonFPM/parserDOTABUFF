@@ -74,6 +74,3 @@ class Parser():
                 json.dump(data_dict, file, indent=4, ensure_ascii=False)
         else:
             print("Нет данных для записи")
-
-
-

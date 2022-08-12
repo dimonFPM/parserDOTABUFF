@@ -50,7 +50,7 @@ class Parser_Item_Class(Parser_Class.Parser):
             descriptions_pasiv = article.find("div", class_="description-block пассивное")
             order = article.find("div", class_="item-build item-builds-from")
             if order:
-                order= order.find("div", class_="order").find_all("img")
+                order = order.find("div", class_="order").find_all("img")
                 # order = order.find_all("img")
                 order = tuple(i["alt"] for i in order)
             else:

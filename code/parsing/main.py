@@ -32,8 +32,8 @@ def check_files():
             print("успешная проверка")
         else:
             print("нет одной из необходимых директорий")
-    except Exception as error:
 
+    except Exception as error:
         print("не получилось проверить наличий нужных деректория и файлов")
 
 
